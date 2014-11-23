@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper 
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.mstory.bbs.mapper.BbsMapper">
+
+	<sql id="list_before">
+		<![CDATA[
+			select 
+				bno , title , writer , publisher , pubyear , state, viewcnt, cnt, ceil(sysdate-regdate) lately, isFile
+			from  
+			(
+				select /*+INDEX_DESC (tbl_book pk_book)*/
+					rownum rn, bno, title, writer, publisher, pubyear, regdate, state, viewcnt, count(bno) over() cnt, isFile
+				from tbl_book
+		]]>
+	</sql>
+	
+	<sql id="list_after">
+		<![CDATA[
+		 		and bno  >  0 and rownum <= CEIL(#{page}/#{displaySize}) * (#{perPageSize}*#{displaySize}) + 1
+			) 
+			where rn > #{rnFirst} and rn <= #{rnLast}	
+		]]>	
+	</sql>
+
+	<select id="readList" parameterType="org.mstory.bbs.common.Criteria" resultType="org.mstory.bbs.vo.BbsVO">
+		
+		<include refid="list_before"/>
+		
+		<![CDATA[
+				where bno > 0 and rownum <= CEIL(#{page}/#{displaySize}) * (#{perPageSize}*#{displaySize}) + 1
+			) 
+			where rn > #{rnFirst} and rn <= #{rnLast}
+		]]>
+	</select>
+	
+	<select id="searchList" parameterType="org.mstory.bbs.common.Criteria" resultType="org.mstory.bbs.vo.BbsVO">
+				
+		<include refid="list_before"/>
+		
+		<where>
+			<foreach index="idx" item="item" collection="criMap.entrySet()" open="and (" separator="OR" close=")">
+				<if test="idx eq 'title'.toString()">
+					title like '%'||#{item}||'%'
+				</if>	
+				<if test="idx eq 'writer'.toString()">
+					writer like '%'||#{item}||'%'
+				</if>
+				<if test="idx eq 'content'.toString()">
+					keyword like '%'||#{item}||'%'
+				</if>
+			</foreach>
+		</where>  
+		
+		<include refid="list_after"/>
+		
+	</select>
+	
+	<insert id="create" parameterType="org.mstory.bbs.vo.BbsVO" useGeneratedKeys="true">
+		<selectKey keyProperty="bno" resultType="int" order="BEFORE" >
+            SELECT seq_bno.nextVal from dual
+    	</selectKey> 
+    	<!-- 자동생성키...밑의 insert문이 실행되기전에 위의 쿼리가 실행되어 나오는 값 bno가 저절로 BbsVO에 set된다.-->
+    	<![CDATA[
+	    	insert into tbl_book(bno, title, writer, publisher ,pubyear, keyword, state, isFile)
+		    values(#{bno}, #{title}, #{writer}, #{publisher}, #{pubyear}, #{keyword}, 1, #{isFile})
+	    ]]>
+	</insert>
+	
+<!-- 	<select id="fileRead" parameterType="int" resultType="String">
+		select 
+  			filename 
+		from tbl_file 
+		where bno=#{bno}	
+	</select> -->
+
+</mapper>
